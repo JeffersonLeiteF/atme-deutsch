@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f2f3f5" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#16181c" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Atme Deutsch</title>
+<style>
+:root{
+  /* plano: só texto, uma coluna, fonte mono do sistema; cor só no cursor, no erro e no detalhe do nome */
+  --bg:#f2f3f5;
+  --ink:#1f2328;
+  --muted:#8a9099;
+  --faint:#bfc4cb;
+  --card:#fdfdfe;
+  --line:#dfe2e7;
+  --accent:#e2462a;
+  --bad:#d0342c;
+  --soft:#b7791f;
+  --mono:ui-monospace,"SF Mono","Cascadia Mono","Segoe UI Mono",Menlo,Consolas,"Roboto Mono","DejaVu Sans Mono","Liberation Mono",monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#16181c; --ink:#e4e6ea; --muted:#7d838d; --faint:#474c54; --card:#1e2127; --line:#2c3038;
+    --accent:#ff6b4f; --bad:#ff6b6b; --soft:#e0a84a; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#16181c; --ink:#e4e6ea; --muted:#7d838d; --faint:#474c54; --card:#1e2127; --line:#2c3038;
+  --accent:#ff6b4f; --bad:#ff6b6b; --soft:#e0a84a; color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--mono);font-size:14px;-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+button,.card,.inp,label,summary{-webkit-tap-highlight-color:transparent}
+.app{
+  max-width:760px;margin:0 auto;min-height:100%;display:flex;flex-direction:column;gap:22px;
+  padding:calc(20px + env(safe-area-inset-top)) max(18px,env(safe-area-inset-right)) calc(20px + env(safe-area-inset-bottom)) max(18px,env(safe-area-inset-left));
+}
+header{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.brand{font-size:14px;font-weight:700;margin:0;letter-spacing:-.01em}
+.brand .inv{color:var(--accent)}
+.stats{color:var(--muted);font-variant-numeric:tabular-nums}
+.stats b{color:var(--ink);font-weight:400}
+
+.tabs,.cats{display:flex;gap:4px 16px;flex-wrap:wrap}
+.tabs button,.cats button{color:var(--muted);padding:2px 0}
+.tabs button:hover,.cats button:hover{color:var(--ink)}
+.tabs button[aria-pressed="true"],.cats button[aria-pressed="true"]{color:var(--ink);text-decoration:underline;text-decoration-color:var(--accent);text-underline-offset:5px;text-decoration-thickness:2px}
+
+.stage{flex:1;display:flex;flex-direction:column;justify-content:center;gap:16px;min-height:340px}
+.meta{display:flex;gap:14px;align-items:baseline;color:var(--muted);font-size:12px}
+.meta .cat{text-transform:uppercase;letter-spacing:.12em}
+.meta .praise{color:var(--accent)}
+.meta .hear{margin-left:auto;color:var(--muted)}
+.meta .hear:hover{color:var(--ink)}
+
+#typeView,#cardView{display:flex;flex-direction:column;gap:16px}
+#cardView{gap:12px}
+.typebox{position:relative}
+.phrase{font-size:clamp(22px,4.2vw,34px);line-height:1.45;margin:0;min-height:1.45em;word-break:normal;overflow-wrap:break-word}
+.phrase .pend{color:var(--faint)}
+.phrase .ok{color:var(--ink)}
+.phrase .soft{color:var(--soft);text-decoration:underline dotted;text-underline-offset:6px}
+.phrase .bad{color:var(--bad)}
+.phrase .bad.sp{background:color-mix(in srgb,var(--bad) 22%,transparent)}
+.phrase .x{text-decoration:line-through}
+.typebox:focus-within .cur{box-shadow:-2px 0 0 0 var(--accent);animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{box-shadow:-2px 0 0 0 transparent}}
+.inp{position:absolute;inset:0;width:100%;height:100%;opacity:0;font-size:16px;border:0;padding:0;margin:0;cursor:text;caret-color:transparent;color:transparent;background:transparent}
+.wake{color:var(--muted);font-size:12px;margin:6px 0 0;visibility:hidden}
+.typebox:not(:focus-within) .wake{visibility:visible}
+
+.trans{font-size:16px;line-height:1.5;color:var(--muted);margin:0;max-width:62ch;transition:filter .2s}
+.trans.veiled{filter:blur(6px);cursor:pointer;user-select:none}
+.note{font-size:12px;line-height:1.5;color:var(--muted);margin:0;max-width:62ch}
+.note:not(:empty)::before{content:"nota: ";color:var(--accent)}
+.note:empty{display:none}
+.keys{color:var(--faint);font-size:12px;display:flex;gap:16px;flex-wrap:wrap}
+.keys button{color:var(--muted)}
+.keys button:hover{color:var(--ink)}
+.keys .k{color:var(--faint);margin-right:6px}
+@media (pointer:coarse){.keys .k,.only-fine{display:none}}
+
+/* flashcard: cartão que vira; ocupa a tela no celular */
+#cardView{flex:1}
+.flip{position:relative;flex:1;min-height:360px;max-height:500px;cursor:pointer;outline:none;perspective:1400px}
+.face{position:absolute;inset:0;display:flex;flex-direction:column;gap:14px;padding:22px 22px 18px;background:var(--card);border:1px solid var(--line);border-radius:22px;box-shadow:0 1px 2px rgba(0,0,0,.04),0 18px 40px -24px rgba(0,0,0,.35);backface-visibility:hidden;-webkit-backface-visibility:hidden;transition:transform .5s cubic-bezier(.2,.7,.2,1);overflow:auto}
+.back-face{transform:rotateY(180deg)}
+.flip.open .front-face{transform:rotateY(-180deg)}
+.flip.open .back-face{transform:rotateY(0)}
+.flip.instant .face{transition:none}
+.flip:focus-visible .face{border-color:var(--accent)}
+.ctop{display:flex;gap:12px;align-items:baseline;font-size:12px;color:var(--muted)}
+.ctop .cat{text-transform:uppercase;letter-spacing:.12em}
+.ctop .praise{color:var(--accent)}
+.ctop .chear{margin-left:auto;color:var(--muted);padding:4px 0}
+.front{font-size:clamp(24px,6vw,36px);line-height:1.4;margin:auto 0;text-wrap:balance}
+.mini{font-size:13px;color:var(--muted);margin:0}
+.back-face .note{margin-top:-4px}
+.tap{color:var(--faint);font-size:12px;margin:0;text-align:center}
+.answers{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.answers button{min-height:54px;border:1px solid var(--line);border-radius:16px;color:var(--muted)}
+.answers button:hover{color:var(--ink)}
+.answers .yes{color:var(--ink);background:var(--card)}
+body[data-mode="card"] .meta{display:none}
+@media (pointer:coarse){.flip{max-height:none}}
+@media (max-width:640px){
+  .cats{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:4px}
+  .cats::-webkit-scrollbar{display:none}
+  .cats button{white-space:nowrap;flex:none}
+}
+
+footer{display:flex;flex-wrap:wrap;gap:8px 20px;color:var(--muted);font-size:12px;padding-top:12px;border-top:1px solid color-mix(in srgb,var(--faint) 55%,transparent)}
+footer label{display:inline-flex;align-items:center;gap:7px;cursor:pointer}
+footer input{accent-color:var(--accent);width:14px;height:14px;margin:0}
+.tip{flex-basis:100%}
+.tip summary{cursor:pointer;list-style:none;color:var(--muted);width:max-content}
+.tip summary::-webkit-details-marker{display:none}
+.tip summary:hover,.tip[open] summary{color:var(--ink)}
+.tip p{margin:8px 0 0;line-height:1.6;max-width:62ch}
+.tip kbd{font:inherit;color:var(--ink)}
+
+body[data-mode="type"] #cardView, body[data-mode="card"] #typeView{display:none}
+body[data-mode="type"] .only-card, body[data-mode="card"] .only-type{display:none}
+body.nospeech .needs-speech{display:none}
+
+button:focus-visible,.card:focus-visible,footer input:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:2px}
+@media (prefers-reduced-motion: reduce){
+  .face{transition:none}
+  .typebox:focus-within .cur{animation:none}
+  .trans{transition:none}
+}
+</style>
+</head>
+<body data-mode="type">
+<div class="app">
+  <header>
+    <h1 class="brand">atme deutsch<span class="inv">!</span></h1>
+    <div class="stats"><b id="today">0</b> hoje · <b id="total">0</b> total</div>
+  </header>
+
+  <nav class="tabs" aria-label="Modo">
+    <button type="button" id="mType">digitar</button>
+    <button type="button" id="mCard">flashcard</button>
+  </nav>
+  <nav class="cats" id="cats" aria-label="Temas"></nav>
+
+  <main class="stage">
+    <div class="meta">
+      <span class="cat" id="catLabel"></span>
+      <span class="praise" id="praise" aria-live="polite"></span>
+      <button type="button" class="hear needs-speech" id="speakBtn">ouvir</button>
+    </div>
+
+    <section id="typeView">
+      <div class="typebox">
+        <p class="phrase" id="phrase" lang="de"></p>
+        <input class="inp" id="inp" type="text" lang="de" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="Digite a frase em alemão">
+        <p class="wake">clique na frase para digitar</p>
+      </div>
+      <p class="trans" id="trans"></p>
+      <p class="note" id="note"></p>
+      <div class="keys">
+        <button type="button" id="skipBtn"><span class="k">esc</span>pular</button>
+        <button type="button" id="nextBtn"><span class="k">enter</span>próxima</button>
+        <button type="button" id="hearBtn" class="needs-speech"><span class="k">tab</span>ouvir</button>
+      </div>
+    </section>
+
+    <section id="cardView">
+      <div class="flip" id="card" role="button" tabindex="0" aria-label="Virar o cartão">
+        <div class="face front-face">
+          <div class="ctop"><span class="cat" id="cCat"></span><span class="praise" id="cPraise" aria-live="polite"></span><button type="button" class="chear needs-speech">ouvir</button></div>
+          <p class="front" id="front"></p>
+          <p class="tap"><span class="only-fine">espaço · </span>toque para virar</p>
+        </div>
+        <div class="face back-face" aria-hidden="true">
+          <div class="ctop"><span class="cat" id="cCat2"></span><button type="button" class="chear needs-speech">ouvir</button></div>
+          <p class="mini" id="mini"></p>
+          <p class="front" id="back"></p>
+          <p class="note" id="cnote"></p>
+          <p class="tap">toque para voltar</p>
+        </div>
+      </div>
+      <div class="answers">
+        <button type="button" id="againBtn">rever depois</button>
+        <button type="button" id="knowBtn" class="yes">já sei</button>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <label class="only-type"><input type="checkbox" id="oLoose"> aceitar a o u e ss no lugar de ä ö ü ß</label>
+    <label class="only-type"><input type="checkbox" id="oCase"> exigir maiúsculas</label>
+    <label class="needs-speech"><input type="checkbox" id="oSpeak"> falar cada frase</label>
+    <label class="only-type"><input type="checkbox" id="oLate"> esconder tradução</label>
+    <label class="only-card"><input type="checkbox" id="oRev"> português → alemão</label>
+    <details class="tip only-type">
+      <summary>como digitar ä ö ü ß</summary>
+      <p><kbd>Windows</kbd> (teclado Inglês Internacional): segure <kbd>AltGr</kbd> (o Alt da direita, ou Ctrl+Alt) e aperte <kbd>q</kbd> = ä, <kbd>p</kbd> = ö, <kbd>y</kbd> = ü, <kbd>s</kbd> = ß. Com Shift vêm Ä, Ö, Ü. Sem teclado numérico, não dá para usar Alt + código.<br>
+      <kbd>Android</kbd>: segure a, o, u ou s no teclado e escolha ä, ö, ü ou ß. Se não aparecer, adicione o alemão nos idiomas do teclado.<br>
+      Enquanto não pegar o jeito, deixe ligada a opção de aceitar a, o, u e ss.</p>
+    </details>
+  </footer>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+var CATS=[["all","tudo"],["aeroporto","aeroporto & voo"],["trem","trem & transporte"],["hotel","hotel"],["restaurante","restaurante & café"],["compras","compras"],["eventos","eventos & shows"],["info","pedir informação"],["imprevistos","imprevistos"],["social","conversa social"],["trabalho","trabalho"],["tempo","dias, meses & horas"]];
+var P=[];
+function add(c,rows){rows.forEach(function(r){P.push({c:c,de:r[0],pt:r[1],n:r[2]||""});});}
+
+add("aeroporto",[
+["Wo ist der Check-in-Schalter?","Onde fica o balcão de check-in?","der Schalter, die Schalter = balcão."],
+["Hier ist mein Reisepass.","Aqui está meu passaporte.","der Reisepass, die Reisepässe."],
+["Ich habe einen Koffer und ein Handgepäck.","Tenho uma mala e uma bagagem de mão.","der Koffer, die Koffer · das Handgepäck (sem plural)."],
+["Mein Koffer ist nicht angekommen.","Minha mala não chegou."],
+["Wo ist das Gepäckband?","Onde fica a esteira de bagagem?","das Gepäckband, die Gepäckbänder."],
+["Welcher Flugsteig ist es?","Qual é o portão de embarque?","der Flugsteig, die Flugsteige. Muita gente diz só das Gate."],
+["Mein Flug geht um zehn Uhr.","Meu voo sai às dez horas.","der Flug, die Flüge."],
+["Der Flug hat Verspätung.","O voo está atrasado.","die Verspätung, die Verspätungen."],
+["Der Flug fällt aus.","O voo foi cancelado.","ausfallen = ser cancelado, não acontecer."],
+["Ich möchte einen Fensterplatz, bitte.","Eu queria um assento na janela, por favor.","der Fensterplatz · der Gangplatz = corredor."],
+["Ich möchte einen Gangplatz, bitte.","Eu queria um assento no corredor, por favor."],
+["Wie viel Gepäck darf ich mitnehmen?","Quanta bagagem posso levar?","mitnehmen = levar junto."],
+["Mein Koffer ist zu schwer.","Minha mala está pesada demais.","zu + adjetivo = demais."],
+["Muss ich den Laptop auspacken?","Preciso tirar o notebook da mala?","auspacken = tirar de dentro."],
+["Haben Sie etwas zu verzollen?","Tem algo a declarar?","verzollen = declarar na alfândega. Sie = forma educada."],
+["Nein, ich habe nichts zu verzollen.","Não, não tenho nada a declarar."],
+["Wie lange bleiben Sie in Deutschland?","Quanto tempo vai ficar na Alemanha?"],
+["Ich bleibe zwei Wochen.","Vou ficar duas semanas.","die Woche, die Wochen."],
+["Ich bin im Urlaub hier.","Estou aqui de férias.","der Urlaub = férias (sem plural)."],
+["Ich bin zum ersten Mal in Deutschland.","É a minha primeira vez na Alemanha."],
+["Wo finde ich ein Taxi?","Onde encontro um táxi?","das Taxi, die Taxis."],
+["Wo ist der Ausgang?","Onde fica a saída?","der Ausgang, die Ausgänge · der Eingang = entrada."],
+["Gibt es hier kostenloses WLAN?","Tem Wi-Fi grátis aqui?","das WLAN = Wi-Fi. kostenlos = grátis."],
+["Wo kann ich Geld wechseln?","Onde posso trocar dinheiro?","das Geld (sem plural) · wechseln = trocar."],
+["Wie komme ich vom Flughafen in die Stadt?","Como chego do aeroporto à cidade?","der Flughafen, die Flughäfen · die Stadt, die Städte."],
+["Ich habe einen Anschlussflug.","Tenho um voo de conexão.","der Anschlussflug, die Anschlussflüge."],
+["Ich habe meinen Anschlussflug verpasst.","Perdi meu voo de conexão.","verpassen = perder (voo, trem, ônibus)."],
+["Wann beginnt das Boarding?","Quando começa o embarque?"],
+["Ich habe die Bordkarte auf dem Handy.","Tenho o cartão de embarque no celular.","die Bordkarte · das Handy = celular."],
+["Wo ist die Toilette?","Onde fica o banheiro?","die Toilette, die Toiletten."],
+["Der Flug nach Berlin ist pünktlich.","O voo para Berlim está no horário.","pünktlich = pontual."],
+["Wo kann ich meine Wasserflasche füllen?","Onde posso encher minha garrafa de água?","die Flasche, die Flaschen · füllen = encher."],
+["Ich suche den Schalter von Lufthansa.","Estou procurando o balcão da Lufthansa."],
+["Der Flug dauert zwei Stunden.","O voo dura duas horas.","dauern = durar."]
+]);
+
+add("trem",[
+["Eine Fahrkarte nach München, bitte.","Uma passagem para Munique, por favor.","die Fahrkarte, die Fahrkarten. Também: das Ticket."],
+["Hin und zurück, bitte.","Ida e volta, por favor."],
+["Nur hin, bitte.","Só ida, por favor."],
+["Was kostet eine Fahrkarte nach Köln?","Quanto custa uma passagem para Colônia?"],
+["Von welchem Gleis fährt der Zug?","De qual plataforma sai o trem?","das Gleis, die Gleise = plataforma · der Zug, die Züge."],
+["Der Zug fährt von Gleis sieben ab.","O trem sai da plataforma sete.","abfahren = partir (separável)."],
+["Wann fährt der nächste Zug nach Hamburg?","Quando sai o próximo trem para Hamburgo?"],
+["Der Zug hat zehn Minuten Verspätung.","O trem está dez minutos atrasado."],
+["Wo muss ich umsteigen?","Onde preciso fazer baldeação?","umsteigen = trocar de trem ou ônibus."],
+["Ich muss in Frankfurt umsteigen.","Preciso trocar de trem em Frankfurt."],
+["Ist dieser Platz frei?","Este lugar está livre?","der Platz, die Plätze."],
+["Ich habe eine Reservierung.","Tenho uma reserva de assento.","die Reservierung, die Reservierungen."],
+["Entschuldigung, das ist mein Platz.","Com licença, esse é o meu lugar."],
+["Wo ist der Bahnhof?","Onde fica a estação de trem?","der Bahnhof, die Bahnhöfe · der Hauptbahnhof = estação central."],
+["Wie komme ich zum Hauptbahnhof?","Como chego à estação central?"],
+["Fährt dieser Zug nach Berlin?","Este trem vai para Berlim?"],
+["Wann kommt der Zug in Dresden an?","Quando o trem chega a Dresden?","ankommen = chegar (separável)."],
+["Der Zug fällt heute aus.","O trem foi cancelado hoje."],
+["Ich habe meinen Zug verpasst.","Perdi meu trem."],
+["Ich möchte ein Tagesticket kaufen.","Quero comprar um bilhete diário.","das Tagesticket · kaufen = comprar."],
+["Wo kann ich das Ticket entwerten?","Onde posso validar o bilhete?","entwerten = validar. Em alguns ônibus e bondes é obrigatório."],
+["Kann ich im Zug bezahlen?","Posso pagar no trem?"],
+["Die nächste Haltestelle ist Marienplatz.","A próxima parada é Marienplatz.","die Haltestelle, die Haltestellen."],
+["Wo ist die nächste U-Bahn-Station?","Onde fica a estação de metrô mais próxima?","die U-Bahn = metrô · die S-Bahn = trem urbano."],
+["Welche Linie fährt zum Flughafen?","Qual linha vai ao aeroporto?","die Linie, die Linien."],
+["Die S-Bahn kommt in drei Minuten.","O trem urbano chega em três minutos."],
+["Ich fahre mit dem Bus.","Vou de ônibus.","mit + dativo: mit dem Bus, mit dem Zug, mit der U-Bahn."],
+["Wo ist die Bushaltestelle?","Onde fica o ponto de ônibus?"],
+["Hält dieser Bus am Museum?","Este ônibus para no museu?","halten = parar."],
+["Ich möchte hier aussteigen.","Quero descer aqui.","aussteigen = descer · einsteigen = embarcar."],
+["Ich brauche ein Taxi zum Hotel.","Preciso de um táxi para o hotel."],
+["Zum Hotel Adler, bitte.","Para o Hotel Adler, por favor."],
+["Wie viel kostet die Fahrt?","Quanto custa a corrida?","die Fahrt, die Fahrten."],
+["Kann ich im Taxi mit Karte zahlen?","Posso pagar com cartão no táxi?"],
+["Gibt es einen Fahrplan?","Tem uma tabela de horários?","der Fahrplan, die Fahrpläne."],
+["Wo kann ich ein Fahrrad mieten?","Onde posso alugar uma bicicleta?","das Fahrrad, die Fahrräder · mieten = alugar."],
+["Ist es weit zu Fuß?","É longe a pé?"],
+["Der Zug ist sehr voll.","O trem está muito cheio."],
+["Ich fahre mit dem Zug nach Berlin.","Vou de trem para Berlim."],
+["Nächster Halt: Köln Hauptbahnhof.","Próxima parada: Köln Hauptbahnhof.","aviso comum dentro dos trens."],
+["Wo ist der Fahrkartenautomat?","Onde fica a máquina de passagens?","der Fahrkartenautomat, die Fahrkartenautomaten."]
+]);
+
+add("hotel",[
+["Ich habe ein Zimmer reserviert.","Eu reservei um quarto.","das Zimmer, die Zimmer."],
+["Mein Name ist Silva.","Meu nome é Silva."],
+["Haben Sie noch ein Zimmer frei?","Vocês ainda têm um quarto livre?"],
+["Ich möchte ein Doppelzimmer für zwei Nächte.","Quero um quarto de casal para duas noites.","die Nacht, die Nächte · das Doppelzimmer."],
+["Ich möchte ein Einzelzimmer.","Quero um quarto de solteiro.","das Einzelzimmer."],
+["Was kostet das Zimmer pro Nacht?","Quanto custa o quarto por noite?"],
+["Ist das Frühstück inklusive?","O café da manhã está incluído?","das Frühstück."],
+["Wann gibt es Frühstück?","A que horas é o café da manhã?","es gibt = tem, há."],
+["Das Frühstück ist von sieben bis zehn Uhr.","O café da manhã é das sete às dez horas."],
+["Wann ist der Check-out?","A que horas é o check-out?"],
+["Der Check-out ist um elf Uhr.","O check-out é às onze horas."],
+["Kann ich meinen Koffer hierlassen?","Posso deixar minha mala aqui?","hierlassen = deixar aqui (separável)."],
+["Wie ist das WLAN-Passwort?","Qual é a senha do Wi-Fi?","das Passwort, die Passwörter."],
+["Mein Zimmer ist zu kalt.","Meu quarto está frio demais."],
+["Die Heizung funktioniert nicht.","O aquecimento não funciona.","die Heizung, die Heizungen."],
+["Es gibt kein warmes Wasser.","Não tem água quente.","das Wasser (sem plural) · kein = nenhum, não tem."],
+["Können Sie mir bitte ein Handtuch bringen?","Pode me trazer uma toalha, por favor?","das Handtuch, die Handtücher."],
+["Ich brauche noch ein Kissen.","Preciso de mais um travesseiro.","das Kissen, die Kissen."],
+["Das Zimmer ist sehr sauber.","O quarto está muito limpo."],
+["Ich habe meinen Schlüssel verloren.","Perdi minha chave.","der Schlüssel, die Schlüssel."],
+["Können Sie mir ein Taxi rufen?","Pode chamar um táxi para mim?"],
+["Wo ist der Aufzug?","Onde fica o elevador?","der Aufzug, die Aufzüge. Também: der Fahrstuhl."],
+["In welchem Stock ist mein Zimmer?","Em que andar fica meu quarto?","der Stock · Erdgeschoss = térreo; erster Stock = 1º andar."],
+["Mein Zimmer ist im dritten Stock.","Meu quarto fica no terceiro andar."],
+["Das Zimmer hat einen Balkon.","O quarto tem varanda.","der Balkon, die Balkone."],
+["Ich möchte noch eine Nacht bleiben.","Quero ficar mais uma noite."],
+["Kann ich bitte die Rechnung haben?","Pode me dar a conta, por favor?","die Rechnung, die Rechnungen."],
+["Kann ich mit Kreditkarte bezahlen?","Posso pagar com cartão de crédito?","die Kreditkarte, die Kreditkarten."],
+["Haben Sie ein ruhiges Zimmer?","Vocês têm um quarto silencioso?","ruhig = calmo, silencioso."],
+["Das Zimmer nebenan ist sehr laut.","O quarto ao lado está muito barulhento.","laut = alto, barulhento."],
+["Gibt es hier einen Parkplatz?","Tem estacionamento aqui?","der Parkplatz, die Parkplätze."],
+["Gibt es einen Safe im Zimmer?","Tem cofre no quarto?","der Safe, die Safes."],
+["Bitte nicht stören.","Favor não perturbar.","aviso para pendurar na porta."],
+["Wir reisen morgen früh ab.","Vamos embora amanhã cedo.","abreisen = partir de viagem (separável)."],
+["Ich möchte das Zimmer wechseln.","Quero trocar de quarto."],
+["Das Bett ist sehr bequem.","A cama é muito confortável.","das Bett, die Betten."],
+["Vielen Dank für Ihre Hilfe.","Muito obrigada pela sua ajuda."]
+]);
+
+add("restaurante",[
+["Einen Tisch für zwei Personen, bitte.","Uma mesa para duas pessoas, por favor.","der Tisch, die Tische · die Person, die Personen."],
+["Haben Sie einen Tisch frei?","Vocês têm uma mesa livre?"],
+["Ich habe einen Tisch reserviert.","Eu reservei uma mesa."],
+["Die Speisekarte, bitte.","O cardápio, por favor.","die Speisekarte, die Speisekarten."],
+["Was empfehlen Sie?","O que o senhor recomenda?","empfehlen = recomendar."],
+["Was ist das Tagesgericht?","Qual é o prato do dia?","das Gericht, die Gerichte = prato."],
+["Ich nehme das Schnitzel.","Vou querer o schnitzel.","das Schnitzel, die Schnitzel · nehmen = pegar, escolher."],
+["Ich möchte die Suppe, bitte.","Quero a sopa, por favor.","die Suppe, die Suppen."],
+["Ich hätte gern einen Kaffee.","Eu queria um café.","ich hätte gern = jeito educado de pedir · der Kaffee."],
+["Ich hätte gern ein Wasser ohne Kohlensäure.","Eu queria uma água sem gás.","die Kohlensäure = gás. Também: stilles Wasser."],
+["Ein Wasser mit Kohlensäure, bitte.","Uma água com gás, por favor.","na Alemanha a água com gás é muito comum."],
+["Ein Bier, bitte.","Uma cerveja, por favor.","das Bier, die Biere."],
+["Ein großes Bier, bitte.","Uma cerveja grande, por favor."],
+["Ich trinke keinen Alkohol.","Eu não bebo álcool.","der Alkohol."],
+["Ich bin Vegetarierin.","Sou vegetariana.","homem: Ich bin Vegetarier."],
+["Haben Sie vegetarische Gerichte?","Vocês têm pratos vegetarianos?"],
+["Ist das scharf?","Isso é picante?","scharf = picante (também significa afiado)."],
+["Ich bin allergisch gegen Nüsse.","Tenho alergia a nozes.","die Nuss, die Nüsse."],
+["Was ist da drin?","O que tem aí dentro?","da drin = aí dentro (coloquial)."],
+["Ohne Zwiebeln, bitte.","Sem cebola, por favor.","die Zwiebel, die Zwiebeln."],
+["Kann ich noch ein Glas Wasser haben?","Posso ter mais um copo de água?","das Glas, die Gläser."],
+["Das schmeckt sehr gut.","Isso está muito gostoso.","schmecken = ter gosto, ser gostoso."],
+["Es war sehr lecker.","Estava muito gostoso.","lecker = gostoso."],
+["Das habe ich nicht bestellt.","Eu não pedi isso."],
+["Die Rechnung, bitte.","A conta, por favor.","Também se diz: Zahlen, bitte!"],
+["Zusammen oder getrennt?","Junto ou separado?","pergunta comum na hora de pagar."],
+["Zusammen, bitte.","Junto, por favor."],
+["Getrennt, bitte.","Separado, por favor."],
+["Ich zahle bar.","Vou pagar em dinheiro.","bar = em dinheiro."],
+["Stimmt so.","Pode ficar com o troco.","dito ao pagar, como gorjeta."],
+["Ich möchte einen Cappuccino, bitte.","Quero um cappuccino, por favor."],
+["Einen Kaffee mit Milch, bitte.","Um café com leite, por favor.","die Milch (sem plural)."],
+["Haben Sie Hafermilch?","Vocês têm leite de aveia?","der Hafer = aveia."],
+["Zum Mitnehmen, bitte.","Para levar, por favor."],
+["Essen Sie hier oder zum Mitnehmen?","Vai comer aqui ou levar?"],
+["Ein Stück Kuchen, bitte.","Um pedaço de bolo, por favor.","der Kuchen, die Kuchen · das Stück, die Stücke."],
+["Was für Kuchen haben Sie?","Que bolos vocês têm?","was für = que tipo de."],
+["Ich möchte eine Bratwurst mit Brötchen.","Quero uma salsicha grelhada com pãozinho.","das Brötchen, die Brötchen. No sul também: die Semmel."],
+["Eine Brezel, bitte.","Um pretzel, por favor.","die Brezel, die Brezeln."],
+["Wir möchten bestellen.","Gostaríamos de pedir.","bestellen = pedir (comida, produto)."],
+["Einen Moment, bitte.","Um momento, por favor.","der Moment, die Momente."],
+["Entschuldigung, wir warten schon lange.","Desculpe, já estamos esperando há muito tempo."],
+["Das Essen ist kalt.","A comida está fria.","das Essen (sem plural)."],
+["Ich möchte Rührei mit Brot.","Quero ovos mexidos com pão.","das Rührei · das Brot, die Brote."],
+["Prost!","Saúde!","brinde. Também: Zum Wohl!"],
+["Guten Appetit!","Bom apetite!"],
+["Danke, gleichfalls.","Obrigada, igualmente."],
+["Ich habe Hunger.","Estou com fome.","em alemão se diz 'ter fome': Hunger haben."],
+["Ich habe Durst.","Estou com sede.","der Durst."],
+["Ich bin satt.","Estou satisfeita, não consigo comer mais.","satt = de barriga cheia."],
+["Wo ist hier ein gutes Restaurant?","Onde tem um bom restaurante por aqui?"]
+]);
+
+add("compras",[
+["Wie viel kostet das?","Quanto custa isso?"],
+["Das ist zu teuer.","Isso é caro demais.","teuer = caro."],
+["Haben Sie das in einer anderen Farbe?","Vocês têm isso em outra cor?","die Farbe, die Farben."],
+["Haben Sie das in Größe M?","Vocês têm isso no tamanho M?","die Größe, die Größen."],
+["Kann ich das anprobieren?","Posso experimentar isso?","anprobieren = provar roupa."],
+["Wo sind die Umkleidekabinen?","Onde ficam os provadores?","die Umkleidekabine, die Umkleidekabinen."],
+["Es passt gut.","Serve bem.","passen = servir, combinar."],
+["Es ist zu klein.","Está pequeno demais."],
+["Es ist zu groß.","Está grande demais."],
+["Ich nehme es.","Vou levar."],
+["Ich schaue mich nur um.","Só estou olhando.","sich umschauen = olhar em volta."],
+["Kann ich mit Karte zahlen?","Posso pagar com cartão?","die Karte, die Karten."],
+["Hier kann man nur bar zahlen.","Aqui só se paga em dinheiro.","na Alemanha muitos lugares só aceitam dinheiro · man = a gente, se."],
+["Ich brauche keine Tüte.","Não preciso de sacola.","die Tüte, die Tüten."],
+["Brauchen Sie eine Tüte?","Precisa de uma sacola?"],
+["Kann ich einen Kassenbon haben?","Posso ter o recibo?","der Kassenbon, die Kassenbons."],
+["Ich möchte das umtauschen.","Quero trocar isso.","umtauschen = trocar um produto."],
+["Ich möchte das zurückgeben.","Quero devolver isso."],
+["Ist das im Angebot?","Isso está em promoção?","das Angebot, die Angebote."],
+["Gibt es einen Rabatt?","Tem desconto?","der Rabatt, die Rabatte."],
+["Wann öffnet das Geschäft?","A que horas a loja abre?","das Geschäft, die Geschäfte."],
+["Das Geschäft schließt um zwanzig Uhr.","A loja fecha às vinte horas.","schließen = fechar."],
+["Sonntags sind die Geschäfte geschlossen.","Aos domingos as lojas ficam fechadas.","na Alemanha quase tudo fecha no domingo."],
+["Wo ist der nächste Supermarkt?","Onde fica o supermercado mais próximo?","der Supermarkt, die Supermärkte."],
+["Ich suche eine Apotheke.","Estou procurando uma farmácia.","die Apotheke, die Apotheken."],
+["Ich brauche Tabletten gegen Kopfschmerzen.","Preciso de comprimidos para dor de cabeça.","die Tablette, die Tabletten."],
+["Ich möchte ein Souvenir kaufen.","Quero comprar uma lembrancinha.","das Souvenir, die Souvenirs."],
+["Das ist ein schönes Geschenk.","Isso é um belo presente.","das Geschenk, die Geschenke."],
+["Ich suche ein Geschenk für meine Mutter.","Estou procurando um presente para minha mãe."],
+["Können Sie das bitte einpacken?","Pode embrulhar, por favor?","einpacken = embrulhar."],
+["Ich suche eine SIM-Karte.","Procuro um chip de celular.","die SIM-Karte, die SIM-Karten."],
+["Auf der Flasche gibt es Pfand.","Tem depósito na garrafa.","das Pfand: valor devolvido quando você entrega a garrafa."],
+["Wo kann ich die Flaschen zurückgeben?","Onde posso devolver as garrafas?"],
+["Ein Kilo Äpfel, bitte.","Um quilo de maçãs, por favor.","der Apfel, die Äpfel."],
+["Zweihundert Gramm Käse, bitte.","Duzentos gramas de queijo, por favor.","der Käse (sem plural)."],
+["Ich hätte gern ein Brot.","Eu queria um pão."],
+["Haben Sie frisches Obst?","Vocês têm frutas frescas?","das Obst (sem plural) = frutas."],
+["Das ist alles, danke.","É só isso, obrigada."],
+["Gibt es hier einen Markt?","Tem uma feira por aqui?","der Markt, die Märkte."],
+["Wo ist die Kasse?","Onde fica o caixa?","die Kasse, die Kassen."],
+["Wo kann ich Postkarten kaufen?","Onde posso comprar cartões-postais?","die Postkarte, die Postkarten."]
+]);
+
+add("eventos",[
+["Zwei Karten für das Konzert, bitte.","Dois ingressos para o show, por favor.","das Konzert, die Konzerte."],
+["Wann beginnt das Konzert?","Quando começa o show?"],
+["Das Konzert beginnt um zwanzig Uhr.","O show começa às vinte horas."],
+["Wo kann ich Tickets kaufen?","Onde posso comprar ingressos?","das Ticket, die Tickets."],
+["Gibt es noch Karten?","Ainda tem ingressos?"],
+["Die Veranstaltung ist ausverkauft.","O evento está esgotado.","die Veranstaltung, die Veranstaltungen."],
+["Gibt es eine Ermäßigung?","Tem desconto (meia-entrada)?","die Ermäßigung, die Ermäßigungen."],
+["Wo ist der Eingang?","Onde fica a entrada?"],
+["Wo ist die Garderobe?","Onde fica a chapelaria?","die Garderobe: onde se deixa casaco e bolsa."],
+["Ich habe die Tickets online gekauft.","Comprei os ingressos online."],
+["Welche Plätze haben wir?","Quais são os nossos lugares?"],
+["Unsere Plätze sind in der dritten Reihe.","Nossos lugares são na terceira fileira.","die Reihe, die Reihen."],
+["Die Show war fantastisch.","O show foi fantástico.","die Show, die Shows."],
+["Die Band spielt heute Abend.","A banda toca hoje à noite.","die Band, die Bands."],
+["Ich mag diese Musik sehr.","Gosto muito dessa música.","die Musik (sem plural)."],
+["Gehen wir zusammen ins Kino?","Vamos juntos ao cinema?","das Kino, die Kinos."],
+["Welcher Film läuft heute?","Que filme está passando hoje?","laufen = correr; para filmes: estar em cartaz."],
+["Gibt es den Film mit Untertiteln?","Tem o filme com legendas?","der Untertitel, die Untertitel."],
+["Ich möchte ins Museum gehen.","Quero ir ao museu.","das Museum, die Museen."],
+["Wie viel kostet der Eintritt?","Quanto custa a entrada?","der Eintritt (sem plural)."],
+["Der Eintritt ist frei.","A entrada é gratuita.","frei = livre, grátis."],
+["Hat das Museum montags geöffnet?","O museu abre às segundas?","muitos museus fecham às segundas."],
+["Das Museum hat montags geschlossen.","O museu fecha às segundas."],
+["Gibt es eine Führung auf Englisch?","Tem visita guiada em inglês?","die Führung, die Führungen."],
+["Darf man hier fotografieren?","Pode tirar fotos aqui?","dürfen = ter permissão para."],
+["Wo findet das Fest statt?","Onde acontece a festa?","stattfinden = acontecer (separável) · das Fest, die Feste."],
+["Auf dem Weihnachtsmarkt gibt es Glühwein.","No mercado de Natal tem vinho quente.","der Glühwein: vinho quente com especiarias."],
+["Ich möchte ein Fußballspiel sehen.","Quero ver um jogo de futebol.","das Spiel, die Spiele."],
+["Wer spielt heute?","Quem joga hoje?"],
+["Das Stadion ist riesig.","O estádio é enorme.","das Stadion, die Stadien."],
+["Wir tanzen den ganzen Abend.","Dançamos a noite toda.","tanzen = dançar."],
+["Ich gehe gern auf Konzerte.","Gosto de ir a shows."],
+["Die Tickets kosten fünfzig Euro.","Os ingressos custam cinquenta euros."],
+["Können wir ein Foto machen?","Podemos tirar uma foto?"],
+["Wie lange dauert die Show?","Quanto tempo dura o show?"],
+["Es gibt eine Pause.","Tem um intervalo.","die Pause, die Pausen."],
+["Wo ist die Bühne?","Onde fica o palco?","die Bühne, die Bühnen."],
+["Das Konzert ist draußen.","O show é ao ar livre.","draußen = lá fora."],
+["Der Club macht um zehn Uhr auf.","A balada abre às dez horas.","aufmachen = abrir (separável)."]
+]);
+
+add("info",[
+["Entschuldigung, können Sie mir helfen?","Com licença, pode me ajudar?"],
+["Entschuldigung, wo ist die Bank?","Com licença, onde fica o banco?","die Bank, die Banken (instituição) · die Bank, die Bänke (de sentar)."],
+["Wie komme ich zum Museum?","Como chego ao museu?"],
+["Gehen Sie geradeaus.","Siga em frente.","geradeaus = em frente."],
+["Biegen Sie links ab.","Vire à esquerda.","abbiegen = virar."],
+["Biegen Sie rechts ab.","Vire à direita."],
+["Nehmen Sie die zweite Straße rechts.","Pegue a segunda rua à direita.","die Straße, die Straßen."],
+["Es ist gleich um die Ecke.","É logo na esquina.","die Ecke, die Ecken."],
+["Es ist nicht weit von hier.","Não é longe daqui."],
+["Es ist ziemlich weit.","É bem longe.","ziemlich = bastante."],
+["Wie weit ist es?","Qual é a distância?"],
+["Wie lange dauert das zu Fuß?","Quanto tempo leva a pé?"],
+["Ich habe mich verlaufen.","Eu me perdi (a pé).","sich verlaufen."],
+["Können Sie mir das auf der Karte zeigen?","Pode me mostrar isso no mapa?","die Karte = mapa, cartão, cardápio."],
+["Wo sind wir gerade?","Onde estamos agora?"],
+["Gibt es hier eine Touristeninformation?","Tem um posto de informação turística aqui?","die Touristeninformation."],
+["Wo ist der nächste Geldautomat?","Onde fica o caixa eletrônico mais próximo?","der Geldautomat, die Geldautomaten."],
+["Gibt es hier in der Nähe ein Café?","Tem um café aqui perto?","die Nähe = proximidade."],
+["Ist das die richtige Richtung?","Essa é a direção certa?","die Richtung, die Richtungen."],
+["Sprechen Sie Englisch?","O senhor fala inglês?"],
+["Könnten Sie langsamer sprechen?","Poderia falar mais devagar?","langsam = devagar."],
+["Ich verstehe nicht.","Não entendo.","verstehen = entender."],
+["Können Sie das bitte wiederholen?","Pode repetir, por favor?"],
+["Was bedeutet das?","O que isso significa?"],
+["Wie sagt man das auf Deutsch?","Como se diz isso em alemão?"],
+["Wie schreibt man das?","Como se escreve isso?"],
+["Können Sie das bitte aufschreiben?","Pode anotar isso, por favor?","aufschreiben = anotar (separável)."],
+["Ich spreche nur ein bisschen Deutsch.","Falo só um pouquinho de alemão.","ein bisschen = um pouquinho."],
+["Was ist das?","O que é isso?"],
+["Wann öffnet die Bank?","A que horas o banco abre?"],
+["Gibt es hier einen Park?","Tem um parque aqui?","der Park, die Parks."],
+["Wo ist die Post?","Onde fica o correio?","die Post (sem plural)."],
+["Wie ist die Adresse?","Qual é o endereço?","die Adresse, die Adressen."],
+["Das Hotel ist auf der linken Seite.","O hotel fica do lado esquerdo.","die Seite, die Seiten."],
+["Die Apotheke ist neben der Bank.","A farmácia fica ao lado do banco.","neben = ao lado de."],
+["Der Supermarkt ist gegenüber vom Bahnhof.","O supermercado fica em frente à estação.","gegenüber = em frente."],
+["Die Post ist hinter dem Rathaus.","O correio fica atrás da prefeitura.","das Rathaus = prefeitura."],
+["Danke für die Information.","Obrigada pela informação."]
+]);
+
+add("imprevistos",[
+["Hilfe!","Socorro!"],
+["Ich brauche Hilfe.","Preciso de ajuda.","die Hilfe (sem plural)."],
+["Rufen Sie bitte die Polizei.","Chame a polícia, por favor.","die Polizei. Telefone da polícia: 110."],
+["Rufen Sie einen Krankenwagen!","Chame uma ambulância!","der Krankenwagen. Emergência médica e bombeiros: 112."],
+["Die Notrufnummer ist die hundertzwölf.","O número de emergência é o cento e doze.","der Notruf = chamada de emergência. O 112 vale em toda a Europa."],
+["Ich brauche einen Arzt.","Preciso de um médico.","der Arzt, die Ärzte · mulher: die Ärztin."],
+["Ich bin krank.","Estou doente."],
+["Mir ist schlecht.","Estou me sentindo mal, enjoada.","literalmente: para mim está ruim."],
+["Ich habe Kopfschmerzen.","Estou com dor de cabeça.","o plural Kopfschmerzen é o normal."],
+["Ich habe Bauchschmerzen.","Estou com dor de barriga.","der Bauch = barriga."],
+["Ich habe Fieber.","Estou com febre.","das Fieber (sem plural)."],
+["Wo ist das nächste Krankenhaus?","Onde fica o hospital mais próximo?","das Krankenhaus, die Krankenhäuser."],
+["Ich habe eine Reiseversicherung.","Tenho seguro viagem.","die Versicherung, die Versicherungen."],
+["Ich habe mein Portemonnaie verloren.","Perdi minha carteira.","das Portemonnaie. Também: die Geldbörse."],
+["Man hat meine Tasche gestohlen.","Roubaram minha bolsa.","man = alguém, 'roubaram' · die Tasche, die Taschen."],
+["Ich habe mein Handy verloren.","Perdi meu celular."],
+["Ich habe meinen Pass verloren.","Perdi meu passaporte.","der Pass, die Pässe."],
+["Wo ist die Polizeiwache?","Onde fica a delegacia?","die Polizeiwache, die Polizeiwachen."],
+["Ich möchte einen Diebstahl melden.","Quero registrar um furto.","der Diebstahl, die Diebstähle · melden = comunicar."],
+["Mein Akku ist leer.","Minha bateria acabou.","der Akku, die Akkus · leer = vazio."],
+["Haben Sie ein Ladegerät?","Vocês têm um carregador?","das Ladegerät, die Ladegeräte."],
+["Kann ich Ihr Telefon benutzen?","Posso usar o seu telefone?"],
+["Was soll ich jetzt tun?","O que devo fazer agora?","tun = fazer."],
+["Es tut mir leid, das war ein Missverständnis.","Sinto muito, foi um mal-entendido.","das Missverständnis, die Missverständnisse."],
+["Es gibt ein Problem mit meiner Buchung.","Tem um problema com a minha reserva.","die Buchung, die Buchungen."],
+["Ich habe einen Fehler gemacht.","Cometi um erro.","der Fehler, die Fehler."],
+["Das ist nicht mein Gepäck.","Essa não é a minha bagagem."],
+["Mein Koffer ist beschädigt.","Minha mala está danificada."],
+["Ich habe etwas im Zug vergessen.","Esqueci algo no trem.","vergessen = esquecer."],
+["Wo ist das Fundbüro?","Onde fica o achados e perdidos?","das Fundbüro, die Fundbüros."],
+["Ich brauche ein Pflaster.","Preciso de um curativo.","das Pflaster, die Pflaster."],
+["Ich habe keinen Regenschirm.","Não tenho guarda-chuva.","der Regenschirm, die Regenschirme."],
+["Kein Problem.","Sem problema."],
+["Alles in Ordnung.","Está tudo certo.","die Ordnung."],
+["Bitte sprechen Sie langsam.","Por favor, fale devagar."],
+["Ich verstehe das Formular nicht.","Não entendo o formulário.","das Formular, die Formulare."],
+["Können Sie mir das bitte erklären?","Pode me explicar isso, por favor?","erklären = explicar."],
+["Bitte sperren Sie meine Karte.","Por favor, bloqueie meu cartão.","sperren = bloquear."],
+["Das Taxi ist nicht gekommen.","O táxi não veio."],
+["Es ist dringend.","É urgente.","dringend = urgente."]
+]);
+
+add("social",[
+["Hallo, wie geht's?","Oi, tudo bem?","wie geht's? = wie geht es dir?"],
+["Gut, danke. Und dir?","Bem, obrigada. E você?"],
+["Guten Morgen!","Bom dia!"],
+["Guten Tag!","Bom dia! / Boa tarde!","usa-se durante o dia todo, até o fim da tarde."],
+["Guten Abend!","Boa noite! (ao chegar)","Gute Nacht = boa noite ao ir dormir."],
+["Gute Nacht!","Boa noite! (ao ir dormir)"],
+["Auf Wiedersehen!","Até logo!","despedida mais formal."],
+["Tschüss!","Tchau!"],
+["Bis später!","Até mais tarde!"],
+["Bis morgen!","Até amanhã!"],
+["Ich heiße Ana.","Meu nome é Ana.","heißen = chamar-se."],
+["Wie heißt du?","Como você se chama?","du = informal (amigos) · Sie = formal."],
+["Wie heißen Sie?","Como o senhor/a senhora se chama?"],
+["Freut mich!","Prazer!"],
+["Ich komme aus Brasilien.","Eu sou do Brasil."],
+["Woher kommst du?","De onde você é?"],
+["Ich wohne in São Paulo.","Eu moro em São Paulo.","wohnen = morar."],
+["Ich bin Brasilianerin.","Sou brasileira.","homem: Brasilianer."],
+["Ich bin verheiratet.","Sou casada.","verheiratet serve para homem e mulher."],
+["Das ist mein Mann.","Este é meu marido.","der Mann, die Männer."],
+["Wie alt bist du?","Quantos anos você tem?"],
+["Ich bin dreißig Jahre alt.","Tenho trinta anos.","das Jahr, die Jahre."],
+["Was machst du beruflich?","O que você faz da vida (profissionalmente)?","der Beruf, die Berufe."],
+["Ich arbeite bei einer Firma.","Trabalho em uma empresa.","die Firma, die Firmen."],
+["Hast du Kinder?","Você tem filhos?","das Kind, die Kinder."],
+["Ich habe einen Bruder und eine Schwester.","Tenho um irmão e uma irmã."],
+["Wie gefällt dir Deutschland?","O que você está achando da Alemanha?","gefallen + dativo."],
+["Deutschland gefällt mir sehr gut.","Eu gosto muito da Alemanha."],
+["Das Essen schmeckt mir sehr gut.","Eu gosto muito da comida.","schmecken + dativo: schmeckt mir = eu gosto (do sabor)."],
+["Ich lerne Deutsch.","Estou aprendendo alemão.","lernen = aprender, estudar."],
+["Mein Deutsch ist noch nicht so gut.","Meu alemão ainda não é tão bom."],
+["Du sprichst sehr gut Deutsch.","Você fala alemão muito bem."],
+["Was machst du gern in deiner Freizeit?","O que você gosta de fazer no tempo livre?","die Freizeit (sem plural)."],
+["Ich lese gern.","Gosto de ler.","gern + verbo = gostar de fazer algo."],
+["Ich höre gern Musik.","Gosto de ouvir música."],
+["Ich gehe gern spazieren.","Gosto de passear.","spazieren gehen = dar uma volta."],
+["Ich reise gern.","Gosto de viajar."],
+["Ich koche gern.","Gosto de cozinhar."],
+["Hast du morgen Zeit?","Você tem tempo amanhã?","die Zeit."],
+["Wollen wir etwas trinken gehen?","Vamos tomar alguma coisa?"],
+["Ja, gern!","Sim, com prazer!"],
+["Nein, danke.","Não, obrigada."],
+["Vielen Dank!","Muito obrigada!"],
+["Bitte schön.","De nada.","bitte tem vários usos: por favor, de nada, aqui está."],
+["Entschuldigung.","Desculpa. / Com licença."],
+["Es tut mir leid.","Sinto muito."],
+["Alles Gute zum Geburtstag!","Parabéns pelo aniversário!","der Geburtstag, die Geburtstage."],
+["Frohe Weihnachten!","Feliz Natal!"],
+["Frohes neues Jahr!","Feliz Ano Novo!"],
+["Schönes Wochenende!","Bom fim de semana!"],
+["Gute Reise!","Boa viagem!","die Reise, die Reisen."],
+["Viel Spaß!","Divirta-se!","der Spaß = diversão."],
+["Wie ist das Wetter heute?","Como está o tempo hoje?","das Wetter (sem plural)."],
+["Heute scheint die Sonne.","Hoje o sol está brilhando.","die Sonne."],
+["Es ist sehr kalt heute.","Está muito frio hoje."],
+["Es regnet.","Está chovendo.","regnen = chover · schneien = nevar."],
+["Ich bin müde.","Estou cansada."],
+["Wie war dein Tag?","Como foi o seu dia?"],
+["Mein Tag war schön.","Meu dia foi bom."],
+["Ich freue mich auf das Wochenende.","Estou ansiosa pelo fim de semana.","sich freuen auf = ficar animado com algo que vem."],
+["Ich vermisse Brasilien.","Sinto saudade do Brasil.","vermissen = sentir falta, ter saudade."],
+["Darf ich ein Foto machen?","Posso tirar uma foto?"],
+["Können wir uns duzen?","Podemos nos tratar por você (du)?","duzen = usar o du."],
+["Sie sind sehr freundlich.","O senhor/a senhora é muito simpático(a).","freundlich = simpático, gentil."],
+["Ich verstehe dich gut.","Eu te entendo bem."]
+]);
+
+add("trabalho",[
+["Ich habe heute einen Termin.","Tenho um compromisso hoje.","der Termin, die Termine = compromisso, horário marcado."],
+["Das Meeting beginnt um zehn Uhr.","A reunião começa às dez horas.","das Meeting, die Meetings. Também: die Besprechung."],
+["Wo ist das Besprechungszimmer?","Onde fica a sala de reunião?"],
+["Ich schicke Ihnen eine E-Mail.","Vou enviar um e-mail para o senhor.","die E-Mail, die E-Mails · schicken = enviar."],
+["Haben Sie meine E-Mail bekommen?","O senhor recebeu meu e-mail?","bekommen = receber (não significa 'ficar')."],
+["Ich rufe Sie später an.","Ligo para o senhor mais tarde.","anrufen = ligar (separável)."],
+["Können wir telefonieren?","Podemos falar por telefone?"],
+["Mein Computer funktioniert nicht.","Meu computador não funciona.","der Computer, die Computer."],
+["Der Drucker ist kaputt.","A impressora está quebrada.","der Drucker, die Drucker."],
+["Das ist mein Kollege.","Este é meu colega.","der Kollege, die Kollegen · mulher: die Kollegin."],
+["Das ist meine Kollegin.","Esta é minha colega."],
+["Ich habe eine Frage.","Tenho uma pergunta.","die Frage, die Fragen."],
+["Ich bin gleich fertig.","Já estou terminando.","gleich = já, daqui a pouco · fertig = pronto."],
+["Ich bin in einer Besprechung.","Estou em uma reunião."],
+["Ich schicke Ihnen die Datei.","Vou enviar o arquivo para o senhor.","die Datei, die Dateien."],
+["Bis wann brauchen Sie das?","Até quando o senhor precisa disso?"],
+["Bis Freitag, bitte.","Até sexta, por favor."],
+["Ich mache jetzt Mittagspause.","Vou fazer a pausa do almoço agora.","die Mittagspause."],
+["Ich habe nächste Woche Urlaub.","Tenho férias na semana que vem."],
+["Ich arbeite von zu Hause.","Trabalho de casa.","também se diz: Ich bin im Homeoffice."],
+["Ich arbeite von neun bis siebzehn Uhr.","Trabalho das nove às dezessete horas."],
+["Das Büro ist im zweiten Stock.","O escritório fica no segundo andar.","das Büro, die Büros."],
+["Heute ist ein Feiertag.","Hoje é feriado.","der Feiertag, die Feiertage."],
+["Heute bin ich nicht im Büro.","Hoje não estou no escritório."],
+["Wie ist Ihre Telefonnummer?","Qual é o seu número de telefone?","die Telefonnummer, die Telefonnummern."],
+["Hier ist meine Visitenkarte.","Aqui está meu cartão de visita.","die Visitenkarte, die Visitenkarten."],
+["Vielen Dank für Ihre Antwort.","Muito obrigada pela sua resposta.","die Antwort, die Antworten."],
+["Mit freundlichen Grüßen","Atenciosamente","fecho de e-mail formal (literalmente: com saudações amigáveis)."],
+["Guten Tag, hier spricht Ana Silva.","Bom dia, aqui é Ana Silva.","ao telefone se diz 'aqui fala'."],
+["Einen Moment, ich verbinde Sie.","Um momento, vou transferir a ligação.","verbinden = conectar."],
+["Er ist gerade nicht da.","Ele não está aqui no momento.","para mulher: Sie ist gerade nicht da."],
+["Ich schreibe Ihnen morgen.","Escrevo para o senhor amanhã."],
+["Das Projekt ist fast fertig.","O projeto está quase pronto.","das Projekt, die Projekte."]
+]);
+
+add("tempo",[
+["Heute ist Montag.","Hoje é segunda-feira.","der Montag. Todos os dias da semana são masculinos (der)."],
+["Heute ist Dienstag.","Hoje é terça-feira.","der Dienstag."],
+["Heute ist Mittwoch.","Hoje é quarta-feira.","der Mittwoch = meio da semana (Mitte + Woche)."],
+["Heute ist Donnerstag.","Hoje é quinta-feira.","der Donnerstag."],
+["Heute ist Freitag.","Hoje é sexta-feira.","der Freitag."],
+["Heute ist Samstag.","Hoje é sábado.","der Samstag. No norte também: Sonnabend."],
+["Heute ist Sonntag.","Hoje é domingo.","der Sonntag."],
+["Morgen ist Dienstag.","Amanhã é terça-feira."],
+["Gestern war Sonntag.","Ontem foi domingo."],
+["Übermorgen ist Mittwoch.","Depois de amanhã é quarta-feira.","übermorgen = depois de amanhã."],
+["Welcher Tag ist heute?","Que dia é hoje?"],
+["Am Montag arbeite ich.","Na segunda eu trabalho.","am + dia = na/no (dia da semana)."],
+["Am Samstag fahre ich nach Berlin.","No sábado vou para Berlim."],
+["Wir treffen uns am Freitag.","A gente se encontra na sexta.","sich treffen = se encontrar."],
+["Montags habe ich Deutschkurs.","Às segundas tenho curso de alemão.","dia + s (montags) = toda segunda."],
+["Samstags schlafe ich lange.","Aos sábados durmo até tarde.","lange schlafen = dormir até tarde."],
+["Von Montag bis Freitag.","De segunda a sexta."],
+["Am Wochenende habe ich frei.","No fim de semana estou de folga.","das Wochenende, die Wochenenden."],
+["Was machst du am Sonntag?","O que você faz no domingo?"],
+["Heute ist Donnerstag, morgen ist Freitag.","Hoje é quinta, amanhã é sexta."],
+["Im Januar schneit es oft.","Em janeiro neva com frequência.","der Januar. Todos os meses são masculinos · im = em (mês)."],
+["Im Februar ist Karneval.","Em fevereiro tem carnaval.","der Februar · der Karneval (no sul: Fasching)."],
+["Im März beginnt der Frühling.","Em março começa a primavera.","der März · der Frühling = primavera."],
+["Im April ist das Wetter wechselhaft.","Em abril o tempo é instável.","der April · wechselhaft = variável."],
+["Im Mai blühen die Blumen.","Em maio as flores desabrocham.","der Mai · die Blume, die Blumen."],
+["Im Juni beginnt der Sommer.","Em junho começa o verão.","der Juni · der Sommer."],
+["Im Juli ist es heiß.","Em julho faz calor.","der Juli."],
+["Im August fahren viele Leute in den Urlaub.","Em agosto muita gente sai de férias.","der August · die Leute = as pessoas."],
+["Im September beginnt der Herbst.","Em setembro começa o outono.","der September · der Herbst."],
+["Das Oktoberfest beginnt im September.","A Oktoberfest começa em setembro.","apesar do nome, começa em setembro."],
+["Im Oktober werden die Tage kürzer.","Em outubro os dias ficam mais curtos.","der Oktober · der Tag, die Tage."],
+["Im November ist es oft grau.","Em novembro costuma ficar cinza.","der November · grau = cinza."],
+["Im Dezember ist Weihnachten.","Em dezembro é Natal.","der Dezember · Weihnachten (sem artigo)."],
+["Im Winter ist es kalt und dunkel.","No inverno é frio e escuro.","der Winter · die Jahreszeiten = as estações do ano."],
+["Mein Geburtstag ist im Mai.","Meu aniversário é em maio."],
+["Welcher Monat ist jetzt?","Que mês é agora?","der Monat, die Monate."],
+["Das Jahr hat zwölf Monate.","O ano tem doze meses."],
+["Ich fahre im Juni nach Deutschland.","Vou para a Alemanha em junho."],
+["Welches Datum ist heute?","Que data é hoje?","das Datum."],
+["Heute ist der erste Mai.","Hoje é primeiro de maio.","datas usam números ordinais: erste, zweite, dritte..."],
+["Heute ist der zwanzigste November.","Hoje é vinte de novembro."],
+["Am dritten Oktober ist ein Feiertag.","Em 3 de outubro é feriado.","3 de outubro: Tag der Deutschen Einheit."],
+["Wie spät ist es?","Que horas são?"],
+["Es ist ein Uhr.","É uma hora.","ein Uhr (com n) = uma hora."],
+["Es ist drei Uhr.","São três horas.","die Uhr = relógio e também hora."],
+["Es ist Viertel nach drei.","São três e quinze.","das Viertel = quarto."],
+["Es ist Viertel vor vier.","São quinze para as quatro."],
+["Es ist halb vier.","São três e meia.","atenção: halb vier = meia hora ANTES das quatro (3h30)."],
+["Es ist zehn nach fünf.","São cinco e dez."],
+["Es ist fünf vor zwölf.","São cinco para o meio-dia (ou meia-noite)."],
+["Es ist Mittag.","É meio-dia.","der Mittag."],
+["Es ist Mitternacht.","É meia-noite.","die Mitternacht."],
+["Um wie viel Uhr?","A que horas?","um + hora = às."],
+["Um acht Uhr.","Às oito horas."],
+["Um halb neun.","Às oito e meia.","halb neun = 8h30."],
+["Der Zug fährt um fünfzehn Uhr dreißig.","O trem sai às 15h30.","em horários oficiais se usa o relógio de 24 horas."],
+["Es ist zwanzig Uhr.","São vinte horas (8 da noite)."],
+["Wir treffen uns um Viertel nach sieben.","A gente se encontra às sete e quinze."],
+["Ich stehe um sieben Uhr auf.","Eu me levanto às sete horas.","aufstehen = levantar-se (separável)."],
+["Ich frühstücke um halb acht.","Tomo café da manhã às sete e meia."],
+["Das Mittagessen ist um zwölf Uhr.","O almoço é ao meio-dia.","das Mittagessen = almoço."],
+["Das Abendessen ist um sieben Uhr.","O jantar é às sete horas.","das Abendessen = jantar."],
+["Heute Abend gehe ich ins Kino.","Hoje à noite vou ao cinema.","der Abend, die Abende."],
+["Morgen früh habe ich einen Termin.","Amanhã cedo tenho um compromisso.","früh = cedo."],
+["Ich habe keine Zeit.","Não tenho tempo."],
+["Es ist schon spät.","Já é tarde."],
+["Es ist noch früh.","Ainda é cedo."],
+["Ich bin pünktlich.","Estou pontual, cheguei na hora."],
+["Ich komme in fünf Minuten.","Chego em cinco minutos.","die Minute, die Minuten."],
+["Das dauert eine Stunde.","Isso leva uma hora.","die Stunde, die Stunden."],
+["Wie lange dauert das?","Quanto tempo isso leva?"],
+["Von zehn bis zwölf Uhr.","Das dez às doze horas."],
+["Ich lerne jeden Tag Deutsch.","Estudo alemão todos os dias."],
+["Einmal pro Woche.","Uma vez por semana."],
+["Am Nachmittag scheint die Sonne.","À tarde o sol aparece.","der Nachmittag."],
+["Am Morgen ist es kalt.","De manhã está frio.","der Morgen."]
+]);
+
+
+function $(id){return document.getElementById(id);}
+var store={
+  get:function(k,d){try{var v=localStorage.getItem("atme:"+k);return v==null?d:JSON.parse(v);}catch(e){return d;}},
+  set:function(k,v){try{localStorage.setItem("atme:"+k,JSON.stringify(v));}catch(e){}}
+};
+var touch=false;try{touch=matchMedia("(pointer:coarse)").matches;}catch(e){}
+/* preferências e progresso ficam neste aparelho (no celular começa em flashcard) */
+var S=Object.assign({mode:touch?"card":"type",cat:"all",loose:true,caps:false,speak:false,late:false,rev:false},store.get("settings",{}));
+if(!CATS.some(function(c){return c[0]===S.cat;}))S.cat="all";
+var stats=store.get("stats",{day:"",today:0,total:0});
+var known=store.get("known",{});
+var queue=[],cur=null,done=false,timer=null;
+var PRAISE=["Super!","Sehr gut!","Genau!","Perfekt!","Toll!","Richtig!","Prima!"];
+var phraseEl=$("phrase"),inp=$("inp"),card=$("card");
+
+function esc(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+function todayStr(){var d=new Date();return d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate();}
+function renderStats(){$("today").textContent=stats.day===todayStr()?stats.today:0;$("total").textContent=stats.total;}
+function bump(){var t=todayStr();if(stats.day!==t){stats.day=t;stats.today=0;}stats.today++;stats.total++;store.set("stats",stats);renderStats();}
+function saveS(){store.set("settings",S);}
+function shuffle(a){for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=a[i];a[i]=a[j];a[j]=t;}return a;}
+function catName(c){for(var i=0;i<CATS.length;i++)if(CATS[i][0]===c)return CATS[i][1];return "";}
+function praise(){var t=PRAISE[Math.floor(Math.random()*PRAISE.length)];$("praise").textContent=t;$("cPraise").textContent=t;}
+
+/* fila: embaralha o tema; frases marcadas como "já sei" 2+ vezes aparecem menos */
+function buildQueue(){
+  var all=P.filter(function(p){return S.cat==="all"||p.c===S.cat;});
+  var q=all.filter(function(p){return !((known[p.de]||0)>=2&&Math.random()<0.6);});
+  if(q.length<6)q=all.slice();
+  shuffle(q);
+  if(cur&&q.length>1&&q[0]===cur)q.push(q.shift());
+  queue=q;
+}
+function next(){
+  clearTimeout(timer);
+  if(!queue.length)buildQueue();
+  cur=queue.shift();done=false;
+  render();
+  if(S.speak&&!(S.mode==="card"&&S.rev))speak(cur.de);
+}
+
+/* voz: escolhe a melhor voz em alemão do aparelho; se uma voz online falhar (sem internet), cai para uma local */
+var hasSpeech=("speechSynthesis" in window)&&("SpeechSynthesisUtterance" in window);
+var voices=[],best=null,bestLocal=null;
+function score(v){
+  if(!/^de/i.test(v.lang))return -1;
+  var s=10,n=v.name||"";
+  if(/^de[-_]DE/i.test(v.lang))s+=4;
+  if(/natural|neural|premium|enhanced|online|google/i.test(n))s+=6;
+  if(/katja|amala|conrad|hedda|stefan|vicki|anna|petra|markus|yannick|helena|marlene|viktoria/i.test(n))s+=2;
+  if(/compact|espeak/i.test(n))s-=4;
+  return s;
+}
+function pickVoice(){
+  try{
+    voices=speechSynthesis.getVoices().filter(function(v){return score(v)>=0;});
+    voices.sort(function(a,b){return score(b)-score(a);});
+    best=voices[0]||null;
+    bestLocal=voices.filter(function(v){return v.localService!==false;})[0]||null;
+  }catch(e){best=bestLocal=null;}
+}
+if(hasSpeech){pickVoice();try{speechSynthesis.onvoiceschanged=pickVoice;}catch(e){}}
+else document.body.classList.add("nospeech");
+function utter(t,v,fallback){
+  var u=new SpeechSynthesisUtterance(t);
+  u.lang=v?v.lang:"de-DE";if(v)u.voice=v;u.rate=.9;
+  if(fallback)u.onerror=function(){try{speechSynthesis.cancel();speechSynthesis.speak(utter(t,bestLocal,false));}catch(e){}};
+  return u;
+}
+function speak(t){
+  if(!hasSpeech)return;
+  try{speechSynthesis.cancel();speechSynthesis.speak(utter(t,best,best&&bestLocal&&best!==bestLocal));}catch(e){}
+}
+
+/* digitação
+   - maiúsculas só contam se "exigir maiúsculas" estiver ligado
+   - modo tolerante: a/o/u valem por ä/ö/ü (amarelo) e "ss" vale por ß (amarelo) */
+var chars=[];
+function norm(ch){ch=ch.replace(/[‘’]/g,"'");return S.caps?ch:ch.toLowerCase();}
+function strip(ch){return norm(ch).normalize("NFD").replace(/[̀-ͯ]/g,"");}
+function cmp(t,u){if(norm(t)===norm(u))return "ok";if(S.loose&&strip(t)===strip(u))return "soft";return "bad";}
+function align(typed){
+  var n=typed.length,k=0,cls=[],bad=0,inc=-1,i,u,t;
+  for(i=0;i<chars.length;i++){
+    u=chars[i];
+    if(k>=n){cls[i]="pend";continue;}
+    t=typed[k];
+    if(S.loose&&u==="ß"){
+      if(norm(t)==="ß"){cls[i]="ok";k++;}
+      else if(norm(t)==="s"){
+        if(k+1>=n){cls[i]="soft";inc=i;k++;}               /* falta o segundo s */
+        else if(norm(typed[k+1])==="s"){cls[i]="soft";k+=2;}
+        else{cls[i]="bad";bad++;k++;}
+      }else{cls[i]="bad";bad++;k++;}
+    }else{
+      cls[i]=cmp(t,u);if(cls[i]==="bad")bad++;k++;
+    }
+  }
+  return {cls:cls,bad:bad,inc:inc,extra:typed.slice(k)};
+}
+function paint(){
+  var typed=Array.from(inp.value.normalize("NFC")),r=align(typed),cls=r.cls,i,html="";
+  var pend=cls.indexOf("pend"),caret=r.inc>=0?r.inc:pend,bad=r.bad+r.extra.length;
+  for(i=0;i<chars.length;i++){
+    html+='<span class="'+cls[i]+(chars[i]===" "?" sp":"")+(i===caret&&!done?" cur":"")+'">'+esc(chars[i])+"</span>";
+  }
+  for(i=0;i<r.extra.length;i++)html+='<span class="bad x'+(r.extra[i]===" "?" sp":"")+'">'+esc(r.extra[i])+"</span>";
+  phraseEl.innerHTML=html;
+  if(!done&&pend===-1&&r.inc===-1&&bad===0&&typed.length>0)finish();
+}
+function finish(){
+  done=true;paint();
+  $("trans").classList.remove("veiled");
+  praise();bump();
+  timer=setTimeout(next,S.late?2600:1300);
+}
+function caretToEnd(){try{var l=inp.value.length;inp.setSelectionRange(l,l);}catch(e){}}
+
+/* cartões */
+function reveal(){
+  var open=card.classList.toggle("open");
+  card.querySelector(".front-face").setAttribute("aria-hidden",open);
+  card.querySelector(".back-face").setAttribute("aria-hidden",!open);
+  if(open&&S.rev&&S.speak)speak(cur.de);
+}
+function answer(knew){
+  if(!cur)return;
+  if(knew){known[cur.de]=(known[cur.de]||0)+1;store.set("known",known);}
+  else queue.splice(Math.min(4,queue.length),0,cur);
+  bump();next();
+  if(knew)praise();
+}
+
+function render(){
+  document.body.dataset.mode=S.mode;
+  $("mType").setAttribute("aria-pressed",S.mode==="type");
+  $("mCard").setAttribute("aria-pressed",S.mode==="card");
+  $("catLabel").textContent=catName(cur.c);
+  $("praise").textContent="";$("cPraise").textContent="";
+  if(S.mode==="type"){
+    inp.value="";chars=Array.from(cur.de);paint();
+    $("trans").textContent=cur.pt;
+    $("trans").classList.toggle("veiled",S.late);
+    $("note").textContent=cur.n;
+    try{inp.focus({preventScroll:true});}catch(e){}
+  }else{
+    card.classList.add("instant");card.classList.remove("open");
+    card.querySelector(".front-face").setAttribute("aria-hidden","false");
+    card.querySelector(".back-face").setAttribute("aria-hidden","true");
+    $("cCat").textContent=$("cCat2").textContent=catName(cur.c);
+    $("mini").textContent=S.rev?cur.pt:cur.de;
+    $("front").textContent=S.rev?cur.pt:cur.de;
+    $("front").lang=S.rev?"pt-BR":"de";
+    $("back").textContent=S.rev?cur.de:cur.pt;
+    $("back").lang=S.rev?"de":"pt-BR";
+    $("cnote").textContent=cur.n;
+    void card.offsetWidth;card.classList.remove("instant");
+  }
+}
+
+function buildCats(){
+  var box=$("cats");box.innerHTML="";
+  CATS.forEach(function(c){
+    var b=document.createElement("button");b.type="button";
+    b.textContent=c[1];
+    b.setAttribute("aria-pressed",S.cat===c[0]);
+    b.addEventListener("click",function(){
+      S.cat=c[0];saveS();
+      Array.prototype.forEach.call(box.children,function(x){x.setAttribute("aria-pressed","false");});
+      b.setAttribute("aria-pressed","true");
+      queue=[];cur=null;next();
+    });
+    box.appendChild(b);
+  });
+}
+
+/* eventos */
+inp.addEventListener("input",function(){if(!done)paint();caretToEnd();});
+["click","focus","select"].forEach(function(ev){inp.addEventListener(ev,caretToEnd);});
+inp.addEventListener("keydown",function(e){
+  if(e.key==="Enter"){e.preventDefault();if(done)next();else $("trans").classList.remove("veiled");}
+  else if(e.key==="Escape"){e.preventDefault();next();}
+  else if(e.key==="Tab"){e.preventDefault();speak(cur.de);}
+  else if(e.key==="ArrowLeft"||e.key==="ArrowRight"||e.key==="Home"||e.key==="End"||e.key==="ArrowUp"||e.key==="ArrowDown"){e.preventDefault();}
+});
+$("trans").addEventListener("click",function(){this.classList.remove("veiled");});
+$("skipBtn").addEventListener("click",next);
+$("nextBtn").addEventListener("click",next);
+$("hearBtn").addEventListener("click",function(){speak(cur.de);inp.focus();});
+$("speakBtn").addEventListener("click",function(){speak(cur.de);if(S.mode==="type")inp.focus();});
+card.addEventListener("click",reveal);
+Array.prototype.forEach.call(document.querySelectorAll(".chear"),function(b){b.addEventListener("click",function(e){e.stopPropagation();speak(cur.de);});});
+$("againBtn").addEventListener("click",function(){answer(false);});
+$("knowBtn").addEventListener("click",function(){answer(true);});
+document.addEventListener("keydown",function(e){
+  if(S.mode!=="card"||e.metaKey||e.ctrlKey||e.altKey)return;
+  var tag=e.target.tagName;
+  if(e.key===" "&&tag!=="BUTTON"&&tag!=="INPUT"&&tag!=="SUMMARY"){e.preventDefault();reveal();}
+  else if(e.key==="Enter"&&e.target===card){e.preventDefault();reveal();}
+  else if(e.key==="1"){answer(false);}
+  else if(e.key==="2"){answer(true);}
+  else if(e.key==="s"||e.key==="S"){speak(cur.de);}
+});
+[["mType","type"],["mCard","card"]].forEach(function(m){
+  $(m[0]).addEventListener("click",function(){S.mode=m[1];saveS();clearTimeout(timer);done=false;render();});
+});
+function bindOpt(id,key,after){
+  var el=$(id);el.checked=!!S[key];
+  el.addEventListener("change",function(){S[key]=el.checked;saveS();if(after)after();if(S.mode==="type")inp.focus();});
+}
+bindOpt("oLoose","loose",function(){if(S.mode==="type"&&!done)paint();});
+bindOpt("oCase","caps",function(){if(S.mode==="type"&&!done)paint();});
+bindOpt("oSpeak","speak");
+bindOpt("oLate","late",function(){if(S.mode==="type"&&!done)$("trans").classList.toggle("veiled",S.late);});
+bindOpt("oRev","rev",function(){if(S.mode==="card")render();});
+
+renderStats();buildCats();next();
+if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){});});}
+})();
+</script>
+</body>
+</html>
